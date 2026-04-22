@@ -21,6 +21,12 @@ let currentUserName = null;
 
 const GAS_URL = "https://script.google.com/macros/s/AKfycbys3jtI5KoMIxZb56RX2a8sxHRIwmRi0JNZRb8ixtIa9oMEhZdGf0--KzfmYN8i7ZgC/exec";
 
+function setTextMessage(id, color, text = "") {
+  const el = document.getElementById(id);
+  el.style.color = color;
+  el.textContent = text;
+}
+
 function showLoading(show) {
   document.getElementById("loading").style.display = show ? "block" : "none";
 }
@@ -71,6 +77,21 @@ function updateBankUI() {
     : hist.slice().reverse().map((h) => `<div class="history-item">${h}</div>`).join("");
 }
 
+function openBankScreen(userName, userData) {
+  currentUser = userData;
+  currentUserName = userName;
+  localStorage.setItem("shimupay_user", userName);
+  showScreen("bank");
+  updateBankUI();
+  loadPendingRequests();
+  loadNotices();
+}
+
+function setDrawerOpen(isOpen) {
+  document.getElementById("drawer").classList.toggle("open", isOpen);
+  document.getElementById("drawerOverlay").classList.toggle("open", isOpen);
+}
+
 async function loadPendingRequests() {
   const div = document.getElementById("pendingList");
   try {
@@ -99,12 +120,7 @@ async function restore() {
     if (saved) {
       const snap = await get(ref(db, `accounts/${saved}`));
       if (snap.exists()) {
-        currentUser = snap.val();
-        currentUserName = saved;
-        showScreen("bank");
-        updateBankUI();
-        loadPendingRequests();
-        loadNotices();
+        openBankScreen(saved, snap.val());
         return;
       }
       localStorage.removeItem("shimupay_user");
@@ -141,7 +157,7 @@ window.createAccount = async function createAccount() {
   const pass = document.getElementById("regPass").value.trim();
   const passConfirm = document.getElementById("regPassConfirm").value.trim();
   const msg = document.getElementById("message");
-  msg.style.color = "red";
+  setTextMessage("message", "red");
 
   const ngWords = ["まんこ", "ちんこ", "おまんこ", "おちんこ", "おちんぽ", "シコシコ", "しこしこ", "おっぱい", "セックス", "せっくす", "おしっこ", "アナル", "あなる", "死ね", "しね", "殺す", "ころす", "クズ", "くず", "バカ", "ばか", "アHO", "あほ", "キモい", "きもい", "うんこ", "ウンコ", "うんち", "ウンチ", "ちんぽ", "チンポ", "さとうはるおみはばかであほでまぬけでむのうです"];
   if (!name) {
@@ -196,7 +212,7 @@ window.login = async function login() {
   const name = document.getElementById("loginName").value.trim();
   const pass = document.getElementById("loginPass").value.trim();
   const msg = document.getElementById("message");
-  msg.style.color = "red";
+  setTextMessage("message", "red");
 
   if (!name || !pass) {
     msg.textContent = "名前とパスワードを入力してください";
@@ -211,13 +227,7 @@ window.login = async function login() {
       msg.textContent = "名前またはパスワードが違います";
       return;
     }
-    currentUser = snapshot.val();
-    currentUserName = name;
-    localStorage.setItem("shimupay_user", name);
-    showScreen("bank");
-    updateBankUI();
-    loadPendingRequests();
-    loadNotices();
+    openBankScreen(name, snapshot.val());
     document.getElementById("loginName").value = "";
     document.getElementById("loginPass").value = "";
     msg.textContent = "";
@@ -380,18 +390,17 @@ window.logout = function logout() {
   currentUser = null;
   currentUserName = null;
   localStorage.removeItem("shimupay_user");
-  document.getElementById("message").textContent = "";
+  setTextMessage("message", "red");
   showScreen("login");
 };
 
 window.toggleDrawer = function toggleDrawer() {
-  document.getElementById("drawer").classList.toggle("open");
-  document.getElementById("drawerOverlay").classList.toggle("open");
+  const drawer = document.getElementById("drawer");
+  setDrawerOpen(!drawer.classList.contains("open"));
 };
 
 window.closeDrawer = function closeDrawer() {
-  document.getElementById("drawer").classList.remove("open");
-  document.getElementById("drawerOverlay").classList.remove("open");
+  setDrawerOpen(false);
 };
 
 if ("serviceWorker" in navigator) {
