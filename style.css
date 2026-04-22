@@ -97,11 +97,12 @@ header {
     padding: 4px 8px;
     box-shadow: none;
     transform: translateY(-50%);
+    
 }
 
 .menu-btn:hover,
 .menu-btn:active {
-    transform: translateY(-50%);
+    transform: translateY(-2px)scale(1.05);
     background: rgba(255,255,255,0.2);
     border-radius: 1px;
 }
@@ -325,8 +326,7 @@ button:active {
 }
 .back-btn:hover { 
     background: #45a049; 
-    
-
+    transform: translateY(-2px)scale(1.05)
 }
 
 @media (max-width: 480px) {
