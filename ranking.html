@@ -11,9 +11,9 @@
 <body>
 <header>しむPay</header>
 <div class="container">
-  <h2>🏆 しむランキング</h2>
+  <h2>ランキング</h2>
   <div id="rankingList"><p id="loading-msg">読み込み中...</p></div>
-  <a href="index.html" class="back-btn">← 銀行に戻る</a>
+  <a href="index.html" class="back-btn">ホームに戻る</a>
 </div>
 
 <script type="module">
@@ -30,30 +30,35 @@
     appId: "1:88269096434:web:c030c1e599c9dc92af576b"
   };
 
+  const TEXT = {
+    noUsers: "まだユーザーがいません",
+    unit: "しむ"
+  };
+
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
-
-  const snap = await get(ref(db, 'accounts'));
-  const list = document.getElementById('rankingList');
+  const snap = await get(ref(db, "accounts"));
+  const list = document.getElementById("rankingList");
 
   if (!snap.exists()) {
-    list.innerHTML = '<p style="text-align:center;color:#888;">まだユーザーがいません</p>';
+    list.innerHTML = `<p style="text-align:center;color:#888;">${TEXT.noUsers}</p>`;
   } else {
     const accounts = snap.val();
     const sorted = Object.entries(accounts)
       .sort((a, b) => (b[1].balance || 0) - (a[1].balance || 0));
 
-    const medals = ['🥇', '🥈', '🥉'];
     list.innerHTML = sorted.map(([name, data], i) => {
-      const rankClass = i < 3 ? `rank-${i+1}` : '';
-      const rankLabel = i < 3 ? medals[i] : `${i+1}位`;
+      const rankClass = i < 3 ? `rank-${i + 1}` : "";
+      const rankLabel = `${i + 1}位`;
+
       return `
         <div class="rank-item">
           <span class="rank-num ${rankClass}">${rankLabel}</span>
           <span class="rank-name">${name}</span>
-          <span class="rank-balance">${data.balance || 0} しむ</span>
-        </div>`;
-    }).join('');
+          <span class="rank-balance">${data.balance || 0} ${TEXT.unit}</span>
+        </div>
+      `;
+    }).join("");
   }
 </script>
 </body>

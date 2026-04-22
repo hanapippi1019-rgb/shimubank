@@ -12,6 +12,9 @@ const firebaseConfig = {
   appId: "1:88269096434:web:c030c1e599c9dc92af576b"
 };
 
+const GAS_URL = "https://script.google.com/macros/s/AKfycbys3jtI5KoMIxZb56RX2a8sxHRIwmRi0JNZRb8ixtIa9oMEhZdGf0--KzfmYN8i7ZgC/exec";
+const NG_WORDS = ["sex", "fuck", "shit", "bitch", "kill", "die"];
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
@@ -19,68 +22,122 @@ const auth = getAuth(app);
 let currentUser = null;
 let currentUserName = null;
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbys3jtI5KoMIxZb56RX2a8sxHRIwmRi0JNZRb8ixtIa9oMEhZdGf0--KzfmYN8i7ZgC/exec";
+const TEXT = {
+  userLabel: "ユーザー",
+  noHistory: "履歴はありません",
+  noNotices: "お知らせはありません",
+  noticesLoadError: "お知らせの取得に失敗しました",
+  noRequests: "申請はありません",
+  requestsLoadError: "申請の読み込みに失敗しました",
+  enterName: "名前を入力してください",
+  invalidName: "その名前は使えません",
+  invalidPin: "パスワードは4桁の数字にしてください",
+  weakPin: "そのパスワードは使えません",
+  pinMismatch: "パスワードが一致しません",
+  nameTaken: "その名前はすでに使われています",
+  accountLimit: "アカウント数が上限に達しています",
+  accountCreated: "アカウントを作成しました。ログインしてください",
+  accountCreateError: "アカウント作成に失敗しました",
+  enterCredentials: "名前とパスワードを入力してください",
+  loginFailed: "名前またはパスワードが違います",
+  loginError: "ログインに失敗しました",
+  enterRecipient: "送る相手を入力してください",
+  cannotSendSelf: "自分自身には送れません",
+  invalidAmount: "金額を正しく入力してください",
+  maxAmount: "1回に送れるのは10しむまでです",
+  insufficientBalance: "残高が足りません",
+  recipientNotFound: "送金先が見つかりません",
+  requestSendError: "申請の送信に失敗しました",
+  senderNotFound: "送金元が見つかりません",
+  senderLowBalance: "送金元の残高が不足しています",
+  approveError: "承認に失敗しました",
+  rejectDone: "申請を拒否しました",
+  rejectError: "拒否に失敗しました",
+  bonusCooldown: "登校ボーナスは24時間に1回までです",
+  geoUnsupported: "この端末では位置情報が使えません",
+  checkingLocation: "位置情報を確認中...",
+  locationError: "位置情報の取得に失敗しました",
+  locationBonusHistory: "登校ボーナス +2 しむ",
+  locationBonusReceived: "ボーナスを受け取りました: +2 しむ"
+};
 
-function setTextMessage(id, color, text = "") {
-  const el = document.getElementById(id);
-  el.style.color = color;
+function $(id) {
+  return document.getElementById(id);
+}
+
+function setMessage(id, text = "", color = "red") {
+  const el = $(id);
+  if (!el) return;
   el.textContent = text;
+  el.style.color = color;
 }
 
-function showLoading(show) {
-  document.getElementById("loading").style.display = show ? "block" : "none";
-}
-
-async function loadNotices() {
-  const div = document.getElementById("noticeList");
-  try {
-    const res = await fetch(GAS_URL);
-    const notices = await res.json();
-    if (!notices || notices.length === 0) {
-      div.innerHTML = '<p class="notice-empty">お知らせはありません</p>';
-      return;
-    }
-    div.innerHTML = notices.map((n) => {
-      let dateStr = n.date;
-      try {
-        const d = new Date(n.date);
-        if (!Number.isNaN(d.getTime())) {
-          dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
-        }
-      } catch (e) {}
-      return `<div class="notice-item">
-        <div class="notice-date">${dateStr} ${n.title}</div>
-        ${n.body ? `<div class="notice-body">${n.body}</div>` : ""}
-      </div>`;
-    }).join("");
-  } catch (e) {
-    div.innerHTML = '<p class="notice-empty">お知らせを取得できませんでした</p>';
-  }
+function setLoading(show) {
+  $("loading").style.display = show ? "block" : "none";
 }
 
 function showScreen(screen) {
-  document.getElementById("restoreLoading").style.display = "none";
-  document.getElementById("loginScreen").style.display = screen === "login" ? "block" : "none";
-  document.getElementById("bankScreen").style.display = screen === "bank" ? "block" : "none";
+  $("restoreLoading").style.display = "none";
+  $("loginScreen").style.display = screen === "login" ? "block" : "none";
+  $("bankScreen").style.display = screen === "bank" ? "block" : "none";
+
   if (screen === "login") {
     window.switchAuthTab("login");
   }
 }
 
 function updateBankUI() {
-  document.getElementById("userName").textContent = `👤 ${currentUserName}`;
-  document.getElementById("balance").textContent = currentUser.balance;
-  const historyDiv = document.getElementById("history");
+  if (!currentUser) return;
+
+  $("userName").textContent = `${TEXT.userLabel}: ${currentUserName}`;
+  $("balance").textContent = currentUser.balance || 0;
+
   const hist = currentUser.history || [];
-  historyDiv.innerHTML = hist.length === 0
-    ? '<p style="color:#aaa;font-size:0.85em;margin:0;">取引履歴はありません</p>'
-    : hist.slice().reverse().map((h) => `<div class="history-item">${h}</div>`).join("");
+  $("history").innerHTML = hist.length === 0
+    ? `<p style="color:#aaa;font-size:0.85em;margin:0;">${TEXT.noHistory}</p>`
+    : hist.slice().reverse().map((item) => `<div class="history-item">${item}</div>`).join("");
 }
 
-function openBankScreen(userName, userData) {
+async function loadNotices() {
+  const list = $("noticeList");
+
+  try {
+    const res = await fetch(GAS_URL);
+    const notices = await res.json();
+
+    if (!Array.isArray(notices) || notices.length === 0) {
+      list.innerHTML = `<p class="notice-empty">${TEXT.noNotices}</p>`;
+      return;
+    }
+
+    list.innerHTML = notices.map((notice) => {
+      let dateStr = notice.date || "";
+      const d = new Date(notice.date);
+
+      if (!Number.isNaN(d.getTime())) {
+        dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+      }
+
+      return `
+        <div class="notice-item">
+          <div class="notice-date">${dateStr} ${notice.title || ""}</div>
+          ${notice.body ? `<div class="notice-body">${notice.body}</div>` : ""}
+        </div>
+      `;
+    }).join("");
+  } catch (error) {
+    list.innerHTML = `<p class="notice-empty">${TEXT.noticesLoadError}</p>`;
+  }
+}
+
+function openBankScreen(userName, userData, persist = true) {
   currentUser = userData;
   currentUserName = userName;
-  localStorage.setItem("shimupay_user", userName);
+
+  if (persist) {
+    localStorage.setItem("shimupay_user", userName);
+  }
+
   showScreen("bank");
   updateBankUI();
   loadPendingRequests();
@@ -88,28 +145,31 @@ function openBankScreen(userName, userData) {
 }
 
 function setDrawerOpen(isOpen) {
-  document.getElementById("drawer").classList.toggle("open", isOpen);
-  document.getElementById("drawerOverlay").classList.toggle("open", isOpen);
+  $("drawer").classList.toggle("open", isOpen);
+  $("drawerOverlay").classList.toggle("open", isOpen);
 }
 
 async function loadPendingRequests() {
-  const div = document.getElementById("pendingList");
+  const list = $("pendingList");
+
   try {
     const snap = await get(ref(db, `requests/${currentUserName}`));
     if (!snap.exists()) {
-      div.innerHTML = '<p style="color:#aaa;font-size:0.85em;margin:0;">申請はありません</p>';
+      list.innerHTML = `<p style="color:#aaa;font-size:0.85em;margin:0;">${TEXT.noRequests}</p>`;
       return;
     }
-    div.innerHTML = Object.entries(snap.val()).map(([id, req]) => `
+
+    list.innerHTML = Object.entries(snap.val()).map(([id, req]) => `
       <div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
-        <b>${req.from}</b> から <b>${req.amount} しむ</b> の申請
+        <b>${req.from}</b> さんから <b>${req.amount} しむ</b> の申請
         <div style="margin-top:6px;display:flex;gap:6px;">
-          <button onclick="approveRequest('${id}','${req.from}',${req.amount})" style="width:auto;padding:5px 12px;font-size:0.85em;display:inline-block;margin:0;flex:1;">✅ 承認</button>
-          <button onclick="rejectRequest('${id}')" style="width:auto;padding:5px 12px;font-size:0.85em;display:inline-block;margin:0;flex:1;background:linear-gradient(135deg,#e53935,#ef5350);box-shadow:0 3px 8px rgba(229,57,53,0.3);">❌ 拒否</button>
+          <button onclick="approveRequest('${id}','${req.from}',${req.amount})" style="width:auto;padding:5px 12px;font-size:0.85em;display:inline-block;margin:0;flex:1;">承認</button>
+          <button onclick="rejectRequest('${id}')" style="width:auto;padding:5px 12px;font-size:0.85em;display:inline-block;margin:0;flex:1;background:linear-gradient(135deg,#e53935,#ef5350);box-shadow:0 3px 8px rgba(229,57,53,0.3);">拒否</button>
         </div>
-      </div>`).join("");
-  } catch (e) {
-    div.innerHTML = '<p style="color:#aaa;font-size:0.85em;margin:0;">読み込みエラー</p>';
+      </div>
+    `).join("");
+  } catch (error) {
+    list.innerHTML = `<p style="color:#aaa;font-size:0.85em;margin:0;">${TEXT.requestsLoadError}</p>`;
   }
 }
 
@@ -117,26 +177,28 @@ async function restore() {
   try {
     await signInAnonymously(auth);
     const saved = localStorage.getItem("shimupay_user");
+
     if (saved) {
       const snap = await get(ref(db, `accounts/${saved}`));
       if (snap.exists()) {
-        openBankScreen(saved, snap.val());
+        openBankScreen(saved, snap.val(), false);
         return;
       }
       localStorage.removeItem("shimupay_user");
     }
-    showScreen("login");
-  } catch (e) {
-    showScreen("login");
+  } catch (error) {
   }
+
+  showScreen("login");
 }
 
 window.switchAuthTab = function switchAuthTab(tab) {
-  const wrapper = document.getElementById("authFormsWrapper");
-  const indicator = document.getElementById("tabIndicator");
-  const loginBtn = document.getElementById("tabLoginBtn");
-  const registerBtn = document.getElementById("tabRegisterBtn");
-  document.getElementById("message").textContent = "";
+  const wrapper = $("authFormsWrapper");
+  const indicator = $("tabIndicator");
+  const loginBtn = $("tabLoginBtn");
+  const registerBtn = $("tabRegisterBtn");
+
+  setMessage("message", "");
 
   if (tab === "register") {
     wrapper.classList.add("show-register");
@@ -153,205 +215,213 @@ window.switchAuthTab = function switchAuthTab(tab) {
 };
 
 window.createAccount = async function createAccount() {
-  const name = document.getElementById("regName").value.trim();
-  const pass = document.getElementById("regPass").value.trim();
-  const passConfirm = document.getElementById("regPassConfirm").value.trim();
-  const msg = document.getElementById("message");
-  setTextMessage("message", "red");
+  const name = $("regName").value.trim();
+  const pass = $("regPass").value.trim();
+  const passConfirm = $("regPassConfirm").value.trim();
 
-  const ngWords = ["まんこ", "ちんこ", "おまんこ", "おちんこ", "おちんぽ", "シコシコ", "しこしこ", "おっぱい", "セックス", "せっくす", "おしっこ", "アナル", "あなる", "死ね", "しね", "殺す", "ころす", "クズ", "くず", "バカ", "ばか", "アHO", "あほ", "キモい", "きもい", "うんこ", "ウンコ", "うんち", "ウンチ", "ちんぽ", "チンポ", "さとうはるおみはばかであほでまぬけでむのうです"];
+  setMessage("message", "");
+
   if (!name) {
-    msg.textContent = "名前を入力してください";
+    setMessage("message", TEXT.enterName);
     return;
   }
-  if (ngWords.some((w) => name.includes(w))) {
-    msg.textContent = "その名前は使用できません";
+  if (NG_WORDS.some((word) => name.toLowerCase().includes(word))) {
+    setMessage("message", TEXT.invalidName);
     return;
   }
-  if (!pass || pass.length !== 4 || !/^\d{4}$/.test(pass)) {
-    msg.textContent = "パスワードは数字4桁にしてください";
+  if (!/^\d{4}$/.test(pass)) {
+    setMessage("message", TEXT.invalidPin);
     return;
   }
   if (["4545", "0721"].includes(pass)) {
-    msg.textContent = "そのパスワードは使用できません";
+    setMessage("message", TEXT.weakPin);
     return;
   }
   if (pass !== passConfirm) {
-    msg.textContent = "パスワードが一致しません";
+    setMessage("message", TEXT.pinMismatch);
     return;
   }
 
-  showLoading(true);
+  setLoading(true);
   try {
     await signInAnonymously(auth);
-    const snapshot = await get(ref(db, `accounts/${name}`));
-    if (snapshot.exists()) {
-      msg.textContent = "その名前はすでに使われています";
+
+    const existing = await get(ref(db, `accounts/${name}`));
+    if (existing.exists()) {
+      setMessage("message", TEXT.nameTaken);
       return;
     }
+
     const allSnap = await get(ref(db, "accounts"));
     if (allSnap.exists() && Object.keys(allSnap.val()).length >= 50) {
-      msg.textContent = "アカウント上限に達しました";
+      setMessage("message", TEXT.accountLimit);
       return;
     }
-    await set(ref(db, `accounts/${name}`), { pass, balance: 0, history: [], lastBonus: 0, createdAt: Date.now() });
-    msg.style.color = "green";
-    msg.textContent = "アカウント作成成功！ログインしてください";
-    document.getElementById("regName").value = "";
-    document.getElementById("regPass").value = "";
-    document.getElementById("regPassConfirm").value = "";
+
+    await set(ref(db, `accounts/${name}`), {
+      pass,
+      balance: 0,
+      history: [],
+      lastBonus: 0,
+      createdAt: Date.now()
+    });
+
+    setMessage("message", TEXT.accountCreated, "green");
+    $("regName").value = "";
+    $("regPass").value = "";
+    $("regPassConfirm").value = "";
     setTimeout(() => window.switchAuthTab("login"), 1200);
-  } catch (e) {
-    msg.textContent = "エラーが発生しました。もう一度お試しください";
+  } catch (error) {
+    setMessage("message", TEXT.accountCreateError);
   } finally {
-    showLoading(false);
+    setLoading(false);
   }
 };
 
 window.login = async function login() {
-  const name = document.getElementById("loginName").value.trim();
-  const pass = document.getElementById("loginPass").value.trim();
-  const msg = document.getElementById("message");
-  setTextMessage("message", "red");
+  const name = $("loginName").value.trim();
+  const pass = $("loginPass").value.trim();
+
+  setMessage("message", "");
 
   if (!name || !pass) {
-    msg.textContent = "名前とパスワードを入力してください";
+    setMessage("message", TEXT.enterCredentials);
     return;
   }
 
-  showLoading(true);
+  setLoading(true);
   try {
     await signInAnonymously(auth);
     const snapshot = await get(ref(db, `accounts/${name}`));
+
     if (!snapshot.exists() || snapshot.val().pass !== pass) {
-      msg.textContent = "名前またはパスワードが違います";
+      setMessage("message", TEXT.loginFailed);
       return;
     }
-    openBankScreen(name, snapshot.val());
-    document.getElementById("loginName").value = "";
-    document.getElementById("loginPass").value = "";
-    msg.textContent = "";
-  } catch (e) {
-    msg.textContent = "接続エラーが発生しました";
+
+    openBankScreen(name, snapshot.val(), true);
+    $("loginName").value = "";
+    $("loginPass").value = "";
+  } catch (error) {
+    setMessage("message", TEXT.loginError);
   } finally {
-    showLoading(false);
+    setLoading(false);
   }
 };
 
 window.sendMoney = async function sendMoney() {
-  const toName = document.getElementById("sendTo").value.trim();
-  const amount = Number(document.getElementById("sendAmount").value);
-  const msg = document.getElementById("bankMessage");
-  msg.style.color = "red";
+  const toName = $("sendTo").value.trim();
+  const amount = Number($("sendAmount").value);
+
+  setMessage("bankMessage", "");
 
   if (!toName) {
-    msg.textContent = "送金先を入力してください";
+    setMessage("bankMessage", TEXT.enterRecipient);
     return;
   }
   if (toName === currentUserName) {
-    msg.textContent = "自分自身には送金できません";
+    setMessage("bankMessage", TEXT.cannotSendSelf);
     return;
   }
-  if (!amount || amount <= 0) {
-    msg.textContent = "金額を入力してください";
+  if (!Number.isFinite(amount) || amount <= 0) {
+    setMessage("bankMessage", TEXT.invalidAmount);
     return;
   }
   if (amount > 10) {
-    msg.textContent = "1回の送金は10しむまでです";
+    setMessage("bankMessage", TEXT.maxAmount);
     return;
   }
-  if (currentUser.balance < amount) {
-    msg.textContent = "残高が足りません";
+  if ((currentUser.balance || 0) < amount) {
+    setMessage("bankMessage", TEXT.insufficientBalance);
     return;
   }
 
-  showLoading(true);
+  setLoading(true);
   try {
     const snap = await get(ref(db, `accounts/${toName}`));
     if (!snap.exists()) {
-      msg.textContent = "送金先が見つかりません";
+      setMessage("bankMessage", TEXT.recipientNotFound);
       return;
     }
-    const rid = Date.now().toString();
-    await set(ref(db, `requests/${toName}/${rid}`), { from: currentUserName, amount, timestamp: rid });
-    msg.style.color = "green";
-    msg.textContent = `${toName}に申請を送りました！承認を待ってください`;
-    document.getElementById("sendTo").value = "";
-    document.getElementById("sendAmount").value = "";
-  } catch (e) {
-    msg.textContent = "申請に失敗しました";
+
+    const requestId = Date.now().toString();
+    await set(ref(db, `requests/${toName}/${requestId}`), {
+      from: currentUserName,
+      amount,
+      timestamp: requestId
+    });
+
+    $("sendTo").value = "";
+    $("sendAmount").value = "";
+    setMessage("bankMessage", `${toName} さんに申請を送りました`, "green");
+  } catch (error) {
+    setMessage("bankMessage", TEXT.requestSendError);
   } finally {
-    showLoading(false);
+    setLoading(false);
   }
 };
 
 window.approveRequest = async function approveRequest(requestId, fromName, amount) {
-  const msg = document.getElementById("bankMessage");
   try {
     const senderSnap = await get(ref(db, `accounts/${fromName}`));
     if (!senderSnap.exists()) {
-      msg.style.color = "red";
-      msg.textContent = "送金者が見つかりません";
-      return;
-    }
-    const sender = senderSnap.val();
-    if (sender.balance < amount) {
-      msg.style.color = "red";
-      msg.textContent = "送金者の残高が不足しています";
+      setMessage("bankMessage", TEXT.senderNotFound);
       return;
     }
 
+    const sender = senderSnap.val();
+    if ((sender.balance || 0) < amount) {
+      setMessage("bankMessage", TEXT.senderLowBalance);
+      return;
+    }
+
+    const senderHistory = sender.history || [];
+    const receiverHistory = currentUser.history || [];
     const updates = {};
+
     updates[`accounts/${fromName}/balance`] = sender.balance - amount;
-    updates[`accounts/${fromName}/history`] = [...(sender.history || []), `${currentUserName} に ${amount} しむ送金（承認済み）`].slice(-10);
-    updates[`accounts/${currentUserName}/balance`] = currentUser.balance + amount;
-    updates[`accounts/${currentUserName}/history`] = [...(currentUser.history || []), `${fromName} から ${amount} しむ受取（承認）`].slice(-10);
+    updates[`accounts/${fromName}/history`] = [...senderHistory, `${currentUserName} さんへ ${amount} しむ送金`].slice(-10);
+    updates[`accounts/${currentUserName}/balance`] = (currentUser.balance || 0) + amount;
+    updates[`accounts/${currentUserName}/history`] = [...receiverHistory, `${fromName} さんから ${amount} しむ受け取り`].slice(-10);
     updates[`requests/${currentUserName}/${requestId}`] = null;
 
     await update(ref(db), updates);
-    currentUser.balance += amount;
-    currentUser.history = [...(currentUser.history || []), `${fromName} から ${amount} しむ受取（承認）`].slice(-10);
+
+    currentUser.balance = (currentUser.balance || 0) + amount;
+    currentUser.history = [...receiverHistory, `${fromName} さんから ${amount} しむ受け取り`].slice(-10);
     updateBankUI();
     loadPendingRequests();
-    msg.style.color = "green";
-    msg.textContent = `${fromName}からの${amount}しむを承認しました！`;
-  } catch (e) {
-    msg.style.color = "red";
-    msg.textContent = "承認に失敗しました";
+    setMessage("bankMessage", `${fromName} さんから ${amount} しむ受け取りました`, "green");
+  } catch (error) {
+    setMessage("bankMessage", TEXT.approveError);
   }
 };
 
 window.rejectRequest = async function rejectRequest(requestId) {
-  const msg = document.getElementById("bankMessage");
   try {
     await set(ref(db, `requests/${currentUserName}/${requestId}`), null);
     loadPendingRequests();
-    msg.style.color = "#888";
-    msg.textContent = "申請を拒否しました";
-  } catch (e) {
-    msg.style.color = "red";
-    msg.textContent = "拒否に失敗しました";
+    setMessage("bankMessage", TEXT.rejectDone, "#888");
+  } catch (error) {
+    setMessage("bankMessage", TEXT.rejectError);
   }
 };
 
 window.getLocationBonus = async function getLocationBonus() {
-  const msg = document.getElementById("bankMessage");
   const btn = document.querySelector(".bonus-btn");
   const now = Date.now();
 
   if (now - (currentUser.lastLocationBonus || 0) < 24 * 60 * 60 * 1000) {
-    msg.style.color = "red";
-    msg.textContent = "位置情報ボーナスは24時間に1回です";
+    setMessage("bankMessage", TEXT.bonusCooldown);
     return;
   }
   if (!navigator.geolocation) {
-    msg.textContent = "このブラウザは位置情報に対応していません";
+    setMessage("bankMessage", TEXT.geoUnsupported);
     return;
   }
 
   btn.disabled = true;
-  msg.style.color = "#888";
-  msg.textContent = "位置情報を取得中...";
+  setMessage("bankMessage", TEXT.checkingLocation, "#888");
 
   navigator.geolocation.getCurrentPosition(async (pos) => {
     const lat = pos.coords.latitude;
@@ -366,22 +436,21 @@ window.getLocationBonus = async function getLocationBonus() {
     const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     if (distance <= limit) {
-      currentUser.balance += 2;
+      currentUser.balance = (currentUser.balance || 0) + 2;
       currentUser.history = currentUser.history || [];
-      currentUser.history.push("📍 ログインボーナス +2 しむ");
+      currentUser.history.push(TEXT.locationBonusHistory);
       currentUser.lastLocationBonus = now;
+
       await set(ref(db, `accounts/${currentUserName}`), currentUser);
       updateBankUI();
-      msg.style.color = "green";
-      msg.textContent = "📍 ボーナス +2 しむ獲得！";
+      setMessage("bankMessage", TEXT.locationBonusReceived, "green");
     } else {
-      msg.style.color = "red";
-      msg.textContent = `対象の場所から離れています（約${Math.round(distance)}m）`;
+      setMessage("bankMessage", `対象地点から離れています（約${Math.round(distance)}m）`);
     }
+
     btn.disabled = false;
   }, () => {
-    msg.style.color = "red";
-    msg.textContent = "位置情報の取得に失敗しました";
+    setMessage("bankMessage", TEXT.locationError);
     btn.disabled = false;
   }, { timeout: 10000 });
 };
@@ -390,13 +459,13 @@ window.logout = function logout() {
   currentUser = null;
   currentUserName = null;
   localStorage.removeItem("shimupay_user");
-  setTextMessage("message", "red");
+  setMessage("message", "");
+  setDrawerOpen(false);
   showScreen("login");
 };
 
 window.toggleDrawer = function toggleDrawer() {
-  const drawer = document.getElementById("drawer");
-  setDrawerOpen(!drawer.classList.contains("open"));
+  setDrawerOpen(!$("drawer").classList.contains("open"));
 };
 
 window.closeDrawer = function closeDrawer() {

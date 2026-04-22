@@ -1,25 +1,28 @@
-const CACHE_NAME = 'simu-pay-v2';
-const urlsToCache = ['/shimupay/', '/shimupay/index.html'];
+const CACHE_NAME = "simu-pay-v3";
+const urlsToCache = [
+  "/shimupay/",
+  "/shimupay/index.html",
+  "/shimupay/style.css",
+  "/shimupay/shikumi.js"
+];
 
-self.addEventListener('install', event => {
+self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
   );
 });
 
-self.addEventListener('activate', event => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
     )
   );
 });
 
-self.addEventListener('fetch', event => {
+self.addEventListener("fetch", (event) => {
   event.respondWith(
-    fetch(event.request).catch(() =>
-      caches.match(event.request)
-    )
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
