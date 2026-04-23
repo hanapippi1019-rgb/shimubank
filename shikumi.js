@@ -76,12 +76,24 @@ function setLoading(show) {
   $("loading").style.display = show ? "block" : "none";
 }
 
+function syncAuthFormsHeight() {
+  const wrapper = $("authFormsWrapper");
+  const loginPanel = $("loginPanel");
+  const registerPanel = $("registerPanel");
+
+  if (!wrapper || !loginPanel || !registerPanel) return;
+
+  const maxHeight = Math.max(loginPanel.scrollHeight, registerPanel.scrollHeight);
+  wrapper.style.minHeight = `${maxHeight}px`;
+}
+
 function showScreen(screen) {
   $("restoreLoading").style.display = "none";
   $("loginScreen").style.display = screen === "login" ? "block" : "none";
   $("bankScreen").style.display = screen === "bank" ? "block" : "none";
 
   if (screen === "login") {
+    syncAuthFormsHeight();
     window.switchAuthTab("login");
   }
 }
@@ -197,21 +209,21 @@ window.switchAuthTab = function switchAuthTab(tab) {
   const indicator = $("tabIndicator");
   const loginBtn = $("tabLoginBtn");
   const registerBtn = $("tabRegisterBtn");
+  const loginPanel = $("loginPanel");
+  const registerPanel = $("registerPanel");
+  const isRegister = tab === "register";
 
   setMessage("message", "");
 
-  if (tab === "register") {
-    wrapper.classList.add("show-register");
-    indicator.classList.add("register");
-    loginBtn.classList.remove("active");
-    registerBtn.classList.add("active");
-    return;
-  }
-
-  wrapper.classList.remove("show-register");
-  indicator.classList.remove("register");
-  loginBtn.classList.add("active");
-  registerBtn.classList.remove("active");
+  wrapper.classList.toggle("show-register", isRegister);
+  indicator.classList.toggle("register", isRegister);
+  loginBtn.classList.toggle("active", !isRegister);
+  registerBtn.classList.toggle("active", isRegister);
+  loginBtn.setAttribute("aria-selected", String(!isRegister));
+  registerBtn.setAttribute("aria-selected", String(isRegister));
+  loginPanel.classList.toggle("hidden-panel", isRegister);
+  registerPanel.classList.toggle("hidden-panel", !isRegister);
+  syncAuthFormsHeight();
 };
 
 window.createAccount = async function createAccount() {
@@ -475,5 +487,8 @@ window.closeDrawer = function closeDrawer() {
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js");
 }
+
+window.addEventListener("resize", syncAuthFormsHeight);
+window.addEventListener("load", syncAuthFormsHeight);
 
 restore();
