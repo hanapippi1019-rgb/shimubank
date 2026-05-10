@@ -235,26 +235,29 @@ window.sendMoney=async function() {
 
 window.approveRequest=async function(requestId,fromName,amount) {
   try {
+    // amountを必ず数値に変換
+    const amt = Number(amount);
     const ss=await get(ref(db,`accounts/${fromName}`));
     if(!ss.exists()){setMessage("bankMessage",TEXT.senderNotFound);return;}
     const sender=ss.val();
-    if((sender.balance||0)<amount){setMessage("bankMessage",TEXT.senderLowBalance);return;}
+    if((sender.balance||0)<amt){setMessage("bankMessage",TEXT.senderLowBalance);return;}
 
-    // updateの代わりに個別setで書き込む
-    const senderNewHistory=[...(sender.history||[]),`${currentUserName} さんへ ${amount} しむ送金`].slice(-10);
-    const receiverNewHistory=[...(currentUser.history||[]),`${fromName} さんから ${amount} しむ受け取り`].slice(-10);
+    const senderNewBalance = Number(sender.balance) - amt;
+    const receiverNewBalance = Number(currentUser.balance||0) + amt;
+    const senderNewHistory=[...(sender.history||[]),`${currentUserName} さんへ ${amt} しむ送金`].slice(-10);
+    const receiverNewHistory=[...(currentUser.history||[]),`${fromName} さんから ${amt} しむ受け取り`].slice(-10);
 
-    await set(ref(db,`accounts/${fromName}/balance`), sender.balance - amount);
+    await set(ref(db,`accounts/${fromName}/balance`), senderNewBalance);
     await set(ref(db,`accounts/${fromName}/history`), senderNewHistory);
-    await set(ref(db,`accounts/${currentUserName}/balance`), (currentUser.balance||0) + amount);
+    await set(ref(db,`accounts/${currentUserName}/balance`), receiverNewBalance);
     await set(ref(db,`accounts/${currentUserName}/history`), receiverNewHistory);
     await set(ref(db,`requests/${currentUserName}/${requestId}`), null);
 
-    currentUser.balance=(currentUser.balance||0)+amount;
+    currentUser.balance=receiverNewBalance;
     currentUser.history=receiverNewHistory;
     updateBankUI(); loadPendingRequests();
-    setMessage("bankMessage",`${fromName} さんから ${amount} しむ受け取りました`,"green");
-  } catch {setMessage("bankMessage",TEXT.approveError);}
+    setMessage("bankMessage",`${fromName} さんから ${amt} しむ受け取りました`,"green");
+  } catch(e) {setMessage("bankMessage",TEXT.approveError); console.error(e);}
 };
 
 window.rejectRequest=async function(requestId) {
