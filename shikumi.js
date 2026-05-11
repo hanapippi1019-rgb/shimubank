@@ -235,29 +235,22 @@ window.sendMoney=async function() {
 
 window.approveRequest=async function(requestId,fromName,amount) {
   try {
-    // amountを必ず数値に変換
-    const amt = Number(amount);
     const ss=await get(ref(db,`accounts/${fromName}`));
     if(!ss.exists()){setMessage("bankMessage",TEXT.senderNotFound);return;}
     const sender=ss.val();
-    if((sender.balance||0)<amt){setMessage("bankMessage",TEXT.senderLowBalance);return;}
-
-    const senderNewBalance = Number(sender.balance) - amt;
-    const receiverNewBalance = Number(currentUser.balance||0) + amt;
-    const senderNewHistory=[...(sender.history||[]),`${currentUserName} さんへ ${amt} しむ送金`].slice(-10);
-    const receiverNewHistory=[...(currentUser.history||[]),`${fromName} さんから ${amt} しむ受け取り`].slice(-10);
-
-    await set(ref(db,`accounts/${fromName}/balance`), senderNewBalance);
-    await set(ref(db,`accounts/${fromName}/history`), senderNewHistory);
-    await set(ref(db,`accounts/${currentUserName}/balance`), receiverNewBalance);
-    await set(ref(db,`accounts/${currentUserName}/history`), receiverNewHistory);
-    await set(ref(db,`requests/${currentUserName}/${requestId}`), null);
-
-    currentUser.balance=receiverNewBalance;
-    currentUser.history=receiverNewHistory;
+    if((sender.balance||0)<amount){setMessage("bankMessage",TEXT.senderLowBalance);return;}
+    const updates={};
+    updates[`accounts/${fromName}/balance`]=sender.balance-amount;
+    updates[`accounts/${fromName}/history`]=[...(sender.history||[]),`${currentUserName} さんへ ${amount} しむ送金`].slice(-10);
+    updates[`accounts/${currentUserName}/balance`]=(currentUser.balance||0)+amount;
+    updates[`accounts/${currentUserName}/history`]=[...(currentUser.history||[]),`${fromName} さんから ${amount} しむ受け取り`].slice(-10);
+    updates[`requests/${currentUserName}/${requestId}`]=null;
+    await update(ref(db),updates);
+    currentUser.balance=(currentUser.balance||0)+amount;
+    currentUser.history=[...(currentUser.history||[]),`${fromName} さんから ${amount} しむ受け取り`].slice(-10);
     updateBankUI(); loadPendingRequests();
-    setMessage("bankMessage",`${fromName} さんから ${amt} しむ受け取りました`,"green");
-  } catch(e) {setMessage("bankMessage",TEXT.approveError); console.error(e);}
+    setMessage("bankMessage",`${fromName} さんから ${amount} しむ受け取りました`,"green");
+  } catch {setMessage("bankMessage",TEXT.approveError);}
 };
 
 window.rejectRequest=async function(requestId) {
@@ -301,7 +294,7 @@ window.subscribePremium=async function() {
     currentUser.balance=nb; currentUser.history=nh;
     currentUser.isPremium=true; currentUser.premiumSince=Date.now();
     updateBankUI();
-    alert("💎 VIP会員になりました！送金上限が30しむにアップしました！");
+    alert("💎 VIP会員になりました");
   } catch {msg.textContent="購入に失敗しました";}
 };
 
