@@ -235,7 +235,6 @@ window.sendMoney=async function() {
 
 window.approveRequest=async function(requestId,fromName,amount) {
   try {
-    // amountを必ず数値に変換
     const amt = Number(amount);
     const ss=await get(ref(db,`accounts/${fromName}`));
     if(!ss.exists()){setMessage("bankMessage",TEXT.senderNotFound);return;}
@@ -248,10 +247,12 @@ window.approveRequest=async function(requestId,fromName,amount) {
     const senderNewHistory=[...(sender.history||[]),`${currentUserName} さんへ ${amt} しむ送金`].slice(-10);
     const receiverNewHistory=[...(currentUser.history||[]),`${fromName} さんから ${amt} しむ受け取り`].slice(-10);
 
-    await set(ref(db,`accounts/${fromName}/balance`), senderNewBalance);
-    await set(ref(db,`accounts/${fromName}/history`), senderNewHistory);
-    await set(ref(db,`accounts/${currentUserName}/balance`), receiverNewBalance);
-    await set(ref(db,`accounts/${currentUserName}/history`), receiverNewHistory);
+    // アカウント全体を上書きする形で書き込む
+    const senderData = {...sender, balance: senderNewBalance, history: senderNewHistory};
+    const receiverData = {...currentUser, balance: receiverNewBalance, history: receiverNewHistory};
+
+    await set(ref(db,`accounts/${fromName}`), senderData);
+    await set(ref(db,`accounts/${currentUserName}`), receiverData);
     await set(ref(db,`requests/${currentUserName}/${requestId}`), null);
 
     currentUser.balance=receiverNewBalance;
