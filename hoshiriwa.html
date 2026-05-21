@@ -271,13 +271,13 @@
 <header>
   <button class="menu-btn" onclick="toggleDrawer()">☰</button>
   📦 ホシリワ
-  <div class="header-balance" id="headerBalance">0 しむ</div>
+  <div class="header-balance" id="headerBalance">0 NKD</div>
 </header>
 
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
   <div class="drawer-title">📦 ホシリワ</div>
-  <a class="drawer-item" href="index.html">🏦 しむPayに戻る</a>
+  <a class="drawer-item" href="index.html">🏦 NKDPayに戻る</a>
   <a class="drawer-item" href="ranking.html">🏆 ランキング</a>
   <a class="drawer-item" href="https://forms.gle/3knWjZZchVdiuYZH6" target="_blank">🚨 通報フォーム</a>
   <a class="drawer-item" onclick="closeDrawer(); logout();">🚪 ログアウト</a>
@@ -318,7 +318,7 @@
     <div style="font-size:0.8em;opacity:0.7;margin-bottom:2px;">残高</div>
     <div>
       <span class="balance-amount" id="balanceDisp">0</span>
-      <span class="balance-unit"> しむ</span>
+      <span class="balance-unit"> NKD</span>
     </div>
   </div>
 
@@ -332,7 +332,7 @@
     <input type="text" id="postRequestTag" placeholder="依頼ジャンル（例：写真、動画）">
     <div style="display:flex;align-items:center;gap:8px;margin:7px 0;">
       <input type="number" id="postReward" placeholder="報酬" min="1" max="100" style="width:auto;flex:1;text-align:center;">
-      <span style="color:#4caf50;font-weight:bold;white-space:nowrap;">しむ（1〜100）</span>
+      <span style="color:#4caf50;font-weight:bold;white-space:nowrap;">NKD（1〜100）</span>
     </div>
     <button onclick="submitPost()">依頼を投稿する</button>
     <p id="postMsg" class="msg" style="color:red;"></p>
@@ -345,7 +345,7 @@
     <div id="postList"><p style="color:#aaa;font-size:0.85em;">読み込み中...</p></div>
   </div>
 
-  <button class="btn-gray" onclick="location.href='index.html'">🏦 しむPayに戻る</button>
+  <button class="btn-gray" onclick="location.href='index.html'">🏦 NKDPayに戻る</button>
   <button class="btn-outline" onclick="logout()">🚪 ログアウト</button>
 
 </div>
