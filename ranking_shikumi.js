@@ -47,7 +47,7 @@ if (!snap.exists()) {
         <div class="podium-rank">${rankLabels[realRank]}</div>
         ${vipBadge}
         <div class="podium-name">${name}</div>
-        <div class="podium-balance">${data.balance || 0} しむ</div>
+        <div class="podium-balance">${data.balance || 0} NKD</div>
         <div class="podium-bar"></div>
       </div>`;
   });
@@ -60,7 +60,7 @@ if (!snap.exists()) {
       <div class="rank-item">
         <span class="rank-num">${i + 4}位</span>
         <span class="rank-name">${name}${vipBadge}</span>
-        <span class="rank-balance">${data.balance || 0} しむ</span>
+        <span class="rank-balance">${data.balance || 0} NKD</span>
       </div>`;
   });
   listHTML += "</div>";
