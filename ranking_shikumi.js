@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAeZ6-QBxkvWLeHG-N20pjxvIHe05OK6Oc",
@@ -13,13 +14,16 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
+await signInAnonymously(auth).catch(()=>{});
 
 const content = document.getElementById("rankingContent");
-const snap = await get(ref(db, "accounts"));
+try {
+  const snap = await get(ref(db, "accounts"));
 
-if (!snap.exists()) {
-  content.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">まだユーザーがいません</p>';
-} else {
+  if (!snap.exists()) {
+    content.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">まだユーザーがいません</p>';
+  } else {
   const accounts = snap.val();
   const sorted = Object.entries(accounts)
     .sort((a, b) => (b[1].balance || 0) - (a[1].balance || 0));
@@ -65,5 +69,9 @@ if (!snap.exists()) {
   });
   listHTML += "</div>";
 
-  content.innerHTML = podiumHTML + listHTML;
+    content.innerHTML = podiumHTML + listHTML;
+  }
+} catch (e) {
+  console.error(e);
+  content.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">ランキングの読み込みに失敗しました</p>';
 }
