@@ -44,8 +44,8 @@ const TEXT = {
   enterRecipient: "送る相手を入力してください",
   cannotSendSelf: "自分自身には送れません",
   invalidAmount: "金額を正しく入力してください",
-  maxAmount: "1回に送れるのは10しむまでです",
-  maxAmountVip: "1回に送れるのは30しむまでです",
+  maxAmount: "1回に送れるのは10NKDまでです",
+  maxAmountVip: "1回に送れるのは30NKDまでです",
   insufficientBalance: "残高が足りません",
   recipientNotFound: "送金先が見つかりません",
   requestSendError: "申請の送信に失敗しました",
@@ -58,8 +58,8 @@ const TEXT = {
   geoUnsupported: "この端末では位置情報が使えません",
   checkingLocation: "位置情報を確認中...",
   locationError: "位置情報の取得に失敗しました",
-  locationBonusHistory: "登校ボーナス +2 しむ",
-  locationBonusReceived: "ボーナスを受け取りました: +2 しむ"
+  locationBonusHistory: "登校ボーナス +2 NKD",
+  locationBonusReceived: "ボーナスを受け取りました: +2 NKD"
 };
 
 function $(id) { return document.getElementById(id); }
@@ -138,7 +138,7 @@ async function loadPendingRequests() {
     if(!snap.exists()){ list.innerHTML=`<p style="color:#aaa;font-size:0.85em;margin:0;">${TEXT.noRequests}</p>`; return; }
     list.innerHTML=Object.entries(snap.val()).map(([id,req])=>`
       <div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
-        <b>${req.from}</b> さんから <b>${req.amount} しむ</b> の申請
+        <b>${req.from}</b> さんから <b>${req.amount} NKD</b> の申請
         <div style="margin-top:6px;display:flex;gap:6px;">
           <button onclick="approveRequest('${id}','${req.from}',${req.amount})" style="width:auto;padding:5px 12px;font-size:0.85em;display:inline-block;margin:0;flex:1;">承認</button>
           <button onclick="rejectRequest('${id}')" style="width:auto;padding:5px 12px;font-size:0.85em;display:inline-block;margin:0;flex:1;background:linear-gradient(135deg,#e53935,#ef5350);box-shadow:0 3px 8px rgba(229,57,53,0.3);">拒否</button>
@@ -243,9 +243,9 @@ window.approveRequest=async function(requestId,fromName,amount) {
 
     const senderNewBalance = Number(sender.balance) - amt;
     const receiverNewBalance = Number(currentUser.balance||0) + amt;
-    if(receiverNewBalance > 10000){setMessage("bankMessage","残高上限（10000しむ）を超えるため受け取れません");return;}
-    const senderNewHistory=[...(sender.history||[]),`${currentUserName} さんへ ${amt} しむ送金`].slice(-10);
-    const receiverNewHistory=[...(currentUser.history||[]),`${fromName} さんから ${amt} しむ受け取り`].slice(-10);
+    if(receiverNewBalance > 10000){setMessage("bankMessage","残高上限（10000NKD）を超えるため受け取れません");return;}
+    const senderNewHistory=[...(sender.history||[]),`${currentUserName} さんへ ${amt} NKD送金`].slice(-10);
+    const receiverNewHistory=[...(currentUser.history||[]),`${fromName} さんから ${amt} NKD受け取り`].slice(-10);
 
     // アカウント全体を上書きする形で書き込む
     const senderData = {...sender, balance: senderNewBalance, history: senderNewHistory};
@@ -258,7 +258,7 @@ window.approveRequest=async function(requestId,fromName,amount) {
     currentUser.balance=receiverNewBalance;
     currentUser.history=receiverNewHistory;
     updateBankUI(); loadPendingRequests();
-    setMessage("bankMessage",`${fromName} さんから ${amt} しむ受け取りました`,"green");
+    setMessage("bankMessage",`${fromName} さんから ${amt} NKD受け取りました`,"green");
   } catch(e) {setMessage("bankMessage",TEXT.approveError); console.error(e);}
 };
 
@@ -281,7 +281,7 @@ window.getLocationBonus=async function() {
     const a=Math.sin(dLat/2)**2+Math.cos(tLat*Math.PI/180)*Math.cos(lat*Math.PI/180)*Math.sin(dLon/2)**2;
     const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     if(dist<=lim){
-      if((currentUser.balance||0)+2 > 10000){setMessage("bankMessage","残高上限（10000しむ）に達しています");btn.disabled=false;return;}
+      if((currentUser.balance||0)+2 > 10000){setMessage("bankMessage","残高上限（10000NKD）に達しています");btn.disabled=false;return;}
       currentUser.balance=(currentUser.balance||0)+2;
       currentUser.history=currentUser.history||[];
       currentUser.history.push(TEXT.locationBonusHistory);
@@ -295,16 +295,16 @@ window.getLocationBonus=async function() {
 
 window.subscribePremium=async function() {
   const msg=$("premiumMsg"); msg.style.color="red";
-  if((currentUser.balance||0)<15){msg.textContent="残高が足りません（15しむ必要）";return;}
-  if(!confirm("15しむを支払ってVIP会員になりますか？"))return;
+  if((currentUser.balance||0)<15){msg.textContent="残高が足りません（15NKD必要）";return;}
+  if(!confirm("15NKDを支払ってVIP会員になりますか？"))return;
   try {
     const nb=currentUser.balance-15;
-    const nh=[...(currentUser.history||[]),"💎 VIPプレミアム加入 -15 しむ"].slice(-10);
+    const nh=[...(currentUser.history||[]),"💎 VIPプレミアム加入 -15 NKD"].slice(-10);
     await update(ref(db,`accounts/${currentUserName}`),{balance:nb,history:nh,isPremium:true,premiumSince:Date.now()});
     currentUser.balance=nb; currentUser.history=nh;
     currentUser.isPremium=true; currentUser.premiumSince=Date.now();
     updateBankUI();
-    alert("💎 VIP会員になりました！送金上限が30しむにアップしました！");
+    alert("💎 VIP会員になりました！送金上限が30NKDにアップしました！");
   } catch {msg.textContent="購入に失敗しました";}
 };
 
