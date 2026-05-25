@@ -13,7 +13,7 @@ const firebaseConfig = {
 };
 
 const GAS_URL = "https://script.google.com/macros/s/AKfycbys3jtI5KoMIxZb56RX2a8sxHRIwmRi0JNZRb8ixtIa9oMEhZdGf0--KzfmYN8i7ZgC/exec";
-const NG_WORDS = ["sex","fuck","shit","bitch","kill","die"];
+const NG_WORDS = ["しね","シネ","死ね","殺す","ころす","コロス","ばか","バカ","あほ","アHO","くそ","クソ","ちくしょう","チクショウ","ファック","ふぁっく","ファッキン","ふぁっきん"];
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -21,6 +21,16 @@ const auth = getAuth(app);
 
 let currentUser = null;
 let currentUserName = null;
+
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 const TEXT = {
   userLabel: "ユーザー",
@@ -189,7 +199,15 @@ window.createAccount=async function() {
     if(ex.exists()){setMessage("message",TEXT.nameTaken);return;}
     const all=await get(ref(db,"accounts"));
     if(all.exists()&&Object.keys(all.val()).length>=50){setMessage("message",TEXT.accountLimit);return;}
-    await set(ref(db,`accounts/${name}`),{pass,balance:0,history:[],lastBonus:0,createdAt:Date.now()});
+    const hashedPass = await hashPassword(pass);
+
+    await set(ref(db,`accounts/${name}`),{
+      pass: hashedPass,
+      balance:0,
+      history:[],
+      lastBonus:0,
+      createdAt:Date.now()
+    });
     setMessage("message",TEXT.accountCreated,"green");
     $("regName").value=""; $("regPass").value=""; $("regPassConfirm").value="";
     setTimeout(()=>window.switchAuthTab("login"),1200);
@@ -205,7 +223,13 @@ window.login=async function() {
   try {
     await signInAnonymously(auth);
     const snap=await get(ref(db,`accounts/${name}`));
-    if(!snap.exists()||snap.val().pass!==pass){setMessage("message",TEXT.loginFailed);return;}
+
+    const hashedPass = await hashPassword(pass);
+
+    if(!snap.exists()||snap.val().pass!==hashedPass){
+      setMessage("message",TEXT.loginFailed);
+      return;
+    }
     openBankScreen(name,snap.val(),true);
     $("loginName").value=""; $("loginPass").value="";
   } catch {setMessage("message",TEXT.loginError);}
@@ -269,28 +293,110 @@ window.rejectRequest=async function(requestId) {
   } catch {setMessage("bankMessage",TEXT.rejectError);}
 };
 
-window.getLocationBonus=async function() {
-  const btn=document.querySelector(".bonus-btn"), now=Date.now();
-  if(now-(currentUser.lastLocationBonus||0)<24*60*60*1000){setMessage("bankMessage",TEXT.bonusCooldown);return;}
-  if(!navigator.geolocation){setMessage("bankMessage",TEXT.geoUnsupported);return;}
-  btn.disabled=true; setMessage("bankMessage",TEXT.checkingLocation,"#888");
-  navigator.geolocation.getCurrentPosition(async(pos)=>{
-    const lat=pos.coords.latitude,lon=pos.coords.longitude;
-    const tLat=35.5627,tLon=139.7163,lim=500,R=6371000;
-    const dLat=(lat-tLat)*Math.PI/180,dLon=(lon-tLon)*Math.PI/180;
-    const a=Math.sin(dLat/2)**2+Math.cos(tLat*Math.PI/180)*Math.cos(lat*Math.PI/180)*Math.sin(dLon/2)**2;
-    const dist=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-    if(dist<=lim){
-      if((currentUser.balance||0)+2 > 10000){setMessage("bankMessage","残高上限（10000NKD）に達しています");btn.disabled=false;return;}
-      currentUser.balance=(currentUser.balance||0)+2;
-      currentUser.history=currentUser.history||[];
+window.getLocationBonus = async function() {
+  const btn = document.querySelector(".bonus-btn");
+  const now = new Date();
+
+  // 今日の9:00
+  const start = new Date();
+  start.setHours(9, 0, 0, 0);
+
+  // 今日の17:00
+  const end = new Date();
+  end.setHours(17, 0, 0, 0);
+
+  // 受付時間チェック
+  if (now < start || now >= end) {
+    setMessage("bankMessage", "登校ボーナスは 9:00〜17:00 の間のみ受け取れます");
+    return;
+  }
+
+  // 今日すでに受け取っているか
+  const lastBonus = currentUser.lastLocationBonus || 0;
+
+  if (lastBonus >= start.getTime()) {
+    setMessage("bankMessage", "今日はもう受け取り済みです");
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    setMessage("bankMessage", TEXT.geoUnsupported);
+    return;
+  }
+
+  btn.disabled = true;
+  setMessage("bankMessage", TEXT.checkingLocation, "#888");
+
+  navigator.geolocation.getCurrentPosition(async(pos) => {
+
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+
+    const tLat = 35.5627;
+    const tLon = 139.7163;
+
+    const lim = 500;
+    const R = 6371000;
+
+    const dLat = (lat - tLat) * Math.PI / 180;
+    const dLon = (lon - tLon) * Math.PI / 180;
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(tLat * Math.PI / 180) *
+      Math.cos(lat * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+
+    const dist =
+      R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    if (dist <= lim) {
+
+      if ((currentUser.balance || 0) + 2 > 10000) {
+        setMessage("bankMessage", "残高上限（10000NKD）に達しています");
+        btn.disabled = false;
+        return;
+      }
+
+      currentUser.balance = (currentUser.balance || 0) + 2;
+
+      currentUser.history = currentUser.history || [];
       currentUser.history.push(TEXT.locationBonusHistory);
-      currentUser.lastLocationBonus=now;
-      await set(ref(db,`accounts/${currentUserName}`),currentUser);
-      updateBankUI(); setMessage("bankMessage",TEXT.locationBonusReceived,"green");
-    } else { setMessage("bankMessage",`対象地点から離れています（約${Math.round(dist)}m）`); }
-    btn.disabled=false;
-  },()=>{setMessage("bankMessage",TEXT.locationError);btn.disabled=false;},{timeout:10000});
+
+      currentUser.lastLocationBonus = Date.now();
+
+      await set(
+        ref(db, `accounts/${currentUserName}`),
+        currentUser
+      );
+
+      updateBankUI();
+
+      setMessage(
+        "bankMessage",
+        TEXT.locationBonusReceived,
+        "green"
+      );
+
+    } else {
+
+      setMessage(
+        "bankMessage",
+        `対象地点から離れています（約${Math.round(dist)}m）`
+      );
+
+    }
+
+    btn.disabled = false;
+
+  }, () => {
+
+    setMessage("bankMessage", TEXT.locationError);
+    btn.disabled = false;
+
+  }, {
+    timeout: 10000
+  });
 };
 
 window.subscribePremium=async function() {
