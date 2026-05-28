@@ -90,18 +90,27 @@ function showScreen(screen) {
 }
 
 function updatePremiumUI() {
-  if(!currentUser) return;
-  if(currentUser.isPremium) {
-    $("vipCard").style.display="block";
-    $("premiumCta").style.display="none";
-    const since=currentUser.premiumSince?new Date(currentUser.premiumSince).toLocaleDateString("ja-JP"):"";
-    $("vipSince").textContent=since?`VIP取得日: ${since}`:"";
-    $("sendAmount").placeholder="送る金額（最大30）";
+  if (!currentUser) return;
+
+  const vip = currentUser.premiumExpireAt && currentUser.premiumExpireAt > Date.now();
+
+  if (vip) {
+    $("vipCard").style.display = "block";
+    $("premiumCta").style.display = "none";
+
+    const date = new Date(currentUser.premiumExpireAt).toLocaleDateString("ja-JP");
+    $("vipSince").textContent = `VIP有効期限: ${date}`;
+
+    $("sendAmount").placeholder = "送る金額（最大30）";
   } else {
-    $("vipCard").style.display="none";
-    $("premiumCta").style.display="block";
-    $("sendAmount").placeholder="送る金額（最大10）";
+    $("vipCard").style.display = "none";
+    $("premiumCta").style.display = "block";
+    $("sendAmount").placeholder = "送る金額（最大10）";
   }
+}
+
+function isVip(user) {
+  return user.premiumExpireAt && user.premiumExpireAt > Date.now();
 }
 
 function updateBankUI() {
@@ -238,12 +247,15 @@ window.login=async function() {
 
 window.sendMoney=async function() {
   const toName=$("sendTo").value.trim(), amount=Number($("sendAmount").value);
-  const maxAmt=currentUser.isPremium?30:10;
+  const maxAmt = isVip(currentUser) ? 30 : 10;
   setMessage("bankMessage","");
   if(!toName){setMessage("bankMessage",TEXT.enterRecipient);return;}
   if(toName===currentUserName){setMessage("bankMessage",TEXT.cannotSendSelf);return;}
   if(!Number.isFinite(amount)||amount<=0){setMessage("bankMessage",TEXT.invalidAmount);return;}
-  if(amount>maxAmt){setMessage("bankMessage",currentUser.isPremium?TEXT.maxAmountVip:TEXT.maxAmount);return;}
+  if(amount>maxAmt){
+    setMessage("bankMessage", isVip(currentUser) ? TEXT.maxAmountVip : TEXT.maxAmount);
+    return;
+  }
   if((currentUser.balance||0)<amount){setMessage("bankMessage",TEXT.insufficientBalance);return;}
   setLoading(true);
   try {
@@ -399,19 +411,66 @@ window.getLocationBonus = async function() {
   });
 };
 
-window.subscribePremium=async function() {
-  const msg=$("premiumMsg"); msg.style.color="red";
-  if((currentUser.balance||0)<15){msg.textContent="残高が足りません（15NKD必要）";return;}
-  if(!confirm("15NKDを支払ってVIP会員になりますか？"))return;
+window.buyVip = async function(days, price, type) {
+  const msg = $("premiumMsg");
+  msg.style.color = "red";
+
+  if ((currentUser.balance || 0) < price) {
+    msg.textContent = `残高が足りません（${price}NKD必要）`;
+    return;
+  }
+
+  if (!confirm(`${price}NKDを支払ってVIPになりますか？`)) return;
+
   try {
-    const nb=currentUser.balance-15;
-    const nh=[...(currentUser.history||[]),"💎 VIPプレミアム加入 -15 NKD"].slice(-10);
-    await update(ref(db,`accounts/${currentUserName}`),{balance:nb,history:nh,isPremium:true,premiumSince:Date.now()});
-    currentUser.balance=nb; currentUser.history=nh;
-    currentUser.isPremium=true; currentUser.premiumSince=Date.now();
+    const now = Date.now();
+    const duration = days * 24 * 60 * 60 * 1000;
+
+    const currentExpire = currentUser.premiumExpireAt || 0;
+
+    const newExpire = currentExpire > now
+      ? currentExpire + duration
+      : now + duration;
+
+    const nb = (currentUser.balance || 0) - price;
+    let label = type;
+
+    if (type === "1month") label = "1ヶ月分";
+    else if (type === "3month") label = "3ヶ月分";
+    else if (type === "12month") label = "12ヶ月分";
+
+    const nh = [...(currentUser.history || []), `💎 VIP加入(${label}) -${price} NKD`].slice(-10);
+
+    await update(ref(db, `accounts/${currentUserName}`), {
+      balance: nb,
+      history: nh,
+      premiumExpireAt: newExpire,
+      premiumType: type
+    });
+
+    currentUser.balance = nb;
+    currentUser.history = nh;
+    currentUser.premiumExpireAt = newExpire;
+    currentUser.premiumType = type;
+
     updateBankUI();
-    alert("💎 VIP会員になりました！送金上限が30NKDにアップしました！");
-  } catch {msg.textContent="購入に失敗しました";}
+    alert("💎 VIP購入完了！");
+
+  } catch {
+    msg.textContent = "購入に失敗しました";
+  }
+};
+
+window.subscribePremium = function() {
+  return window.buyVip(30, 15, "1month");
+};
+
+window.subscribePremium3Month = function() {
+  return window.buyVip(90, 50, "3month");
+};
+
+window.subscribePremium12Month = function() {
+  return window.buyVip(365, 135, "12month");
 };
 
 window.logout=function() {
