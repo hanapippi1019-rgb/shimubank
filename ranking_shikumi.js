@@ -13,6 +13,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const adminNames = ["はなぴっぴ", "は"];
 const db = getDatabase(app);
 const auth = getAuth(app);
 await signInAnonymously(auth).catch(()=>{});
@@ -28,7 +29,7 @@ try {
   const sorted = Object.entries(accounts)
     .sort((a, b) => (b[1].balance || 0) - (a[1].balance || 0));
 
-  const crowns = ["👑", "", ""];
+  const crowns = ["👑", "🥈", "🥉"];
   const rankLabels = ["1位", "2位", "3位"];
   const podiumClass = ["podium-1st", "podium-2nd", "podium-3rd"];
 
@@ -43,30 +44,60 @@ try {
   podiumOrder.forEach((entry) => {
     if (!entry) return;
     const [name, data] = entry;
+    const cleanName = String(name).trim();
+    alert(name);
     const realRank = sorted.indexOf(entry);
-    const vipBadge = data.isPremium ? '<span class="podium-vip">VIP</span>' : "";
+   const vipBadge = data.isPremium ? '<span class="podium-vip">VIP</span>' : "";
+
+console.log("TOP3名:", cleanName);
+
+const isAdmin = adminNames.includes(cleanName);
+
+const adminBadge = isAdmin
+  ? '<span style="background:red;color:white;padding:2px 6px;border-radius:6px;margin-left:4px;">運営</span>'
+  : "";
     podiumHTML += `
-      <div class="podium-item ${podiumClass[realRank]}">
-        <div class="podium-crown">${crowns[realRank]}</div>
-        <div class="podium-rank">${rankLabels[realRank]}</div>
-        ${vipBadge}
-        <div class="podium-name">${name}</div>
-        <div class="podium-balance">${data.balance || 0} NKD</div>
-        <div class="podium-bar"></div>
-      </div>`;
+  <div class="podium-item ${podiumClass[realRank]}">
+    <div class="podium-crown">${crowns[realRank]}</div>
+    <div class="podium-rank">${rankLabels[realRank]}</div>
+
+    <div class="podium-name">
+      ${name}
+      ${adminBadge}
+      ${vipBadge}
+    </div>
+
+    <div class="podium-balance">${data.balance || 0} NKD</div>
+    <div class="podium-bar"></div>
+  </div>`;
   });
   podiumHTML += "</div>";
 
-  let listHTML = '<div class="rank-list">';
-  sorted.slice(3).forEach(([name, data], i) => {
-    const vipBadge = data.isPremium ? '<span class="rank-vip">VIP</span>' : "";
-    listHTML += `
-      <div class="rank-item">
-        <span class="rank-num">${i + 4}位</span>
-        <span class="rank-name">${name}${vipBadge}</span>
-        <span class="rank-balance">${data.balance || 0} NKD</span>
-      </div>`;
-  });
+let listHTML = '<div class="rank-list">';
+
+sorted.slice(3).forEach(([name, data], i) => {
+  const vipBadge = data.isPremium
+    ? '<span class="rank-vip">VIP</span>'
+    : "";
+
+  const cleanName = String(name).trim();
+
+  console.log("ランキング名:", cleanName);
+
+  const adminBadge = adminNames.some(
+  admin => cleanName === admin
+)
+    ? '<span class="admin-badge">運営</span>'
+    : "";
+
+  listHTML += `
+    <div class="rank-item">
+      <span class="rank-num">${i + 4}位</span>
+      <span class="rank-name">${name}${adminBadge}${vipBadge}</span>
+      <span class="rank-balance">${data.balance || 0} NKD</span>
+    </div>`;
+});
+
   listHTML += "</div>";
 
     content.innerHTML = podiumHTML + listHTML;
